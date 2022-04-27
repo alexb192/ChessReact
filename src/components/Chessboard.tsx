@@ -64,7 +64,7 @@ export default function Chessboard() {
         setOpponent(Colour.BLACK);
     }, [])
 
-    const DangerZones = () => {
+    const DangerZones = (colour: Colour) => {
         // i'll just have to repurpose the algorithm
         // and try to find valid 'attack tiles' for every active unit
         // of a certain colour
@@ -72,6 +72,7 @@ export default function Chessboard() {
         // if you're in that, then check triggers
         // can just create an array full of those Position{x, y} coordinates and compare it with the king's position
         
+
         let dangerZonesArray: Position[] = []; // ok so im using an array but i actually want a set. Problem is, sets can't compare object elements.
         let direction: number;
         let piecePositions: Position[] = [];
@@ -80,17 +81,19 @@ export default function Chessboard() {
         pieces?.forEach(piece => {
             piecePositions.push({column: piece.x, row: piece.y})
         })
+        
+        // i can't use piecePositions anymore. i have to reformat everything to not use it lol
     
-        opponent === Colour.BLACK ? direction = -1 : direction = 1; // black goes down, while white goes up. this is used for pawns exclusively!
+        colour === Colour.BLACK ? direction = -1 : direction = 1; // black goes down, while white goes up. this is used for pawns exclusively!
     
         pieces?.forEach(piece => {
-            if (piece.colour === opponent) // type of enemy we're checking for
+            if (piece.colour === player) // we're looking for colour's enemy. those enemies create dangerous zones for the provided colour e.g. white's danger zones are created by black pieces in this formula
             {
                 switch (piece.type) // this is going to be a big mess of complicated math, but basically i'm setting tiles based on where pieces could go, and accounting for the fact that you can't jump over other pieces.
                 {
                     case Type.PAWN:
-                        dangerZonesArray.push({column: piece.x + direction * 1, row: piece.y + direction * 1});
-                        dangerZonesArray.push({column: piece.x - direction * 1, row: piece.y + direction * 1});
+                        dangerZonesArray.push({column: piece.x + 1, row: piece.y + direction * 1});
+                        dangerZonesArray.push({column: piece.x - 1, row: piece.y + direction * 1});
                         break;
                     case Type.KNIGHT:
                         dangerZonesArray.push({column: piece.x + 1, row: piece.y + 2});
@@ -205,9 +208,11 @@ export default function Chessboard() {
                             if(JSON.stringify(piecePositions).includes(JSON.stringify({column: piece.x + i, row: piece.y - i}))) // check if there is a piece in pieces where we're currently pointed to
                             {
                                 dangerZonesArray.push({column: piece.x + i, row: piece.y - i}); // add that last tile to dangerzones, used for making a king have to move
+                                console.log(`(${piece.x + i}, ${piece.y - i} is in danger)`);
                                 i = 8; // end the iteration
                             } else {
                                 dangerZonesArray.push({column: piece.x + i, row: piece.y - i}); // add the tile to the list of dangerous tiles, and move on to the next tile.
+                                console.log(`(${piece.x + i}, ${piece.y - i} is in danger)`);
                             }
 
                         }
@@ -496,11 +501,38 @@ export default function Chessboard() {
 
     }
 
+    const checkCheck = () => {
+
+        let dangerZones = DangerZones(opponent!); // did we put our opponent in check?
+
+
+        pieces!.forEach(piece => {
+            if ((piece.type === Type.KING) && (piece.colour === opponent))
+            {
+                // is the enemy king in a danger zone?
+
+                if (JSON.stringify(dangerZones).includes(JSON.stringify({column: piece.x, row: piece.y}))) 
+                {
+                    console.log(`${opponent} is in Check`);
+                    setCheck(opponent);
+                }
+            }
+        })
+
+    }
+
     const verifyLegalMove = (piece: Piece, oldPosition: Position, newPosition: Position) => {
 
-        let dangerZones: Position[] = DangerZones();
+        let dangerZones: Position[] = DangerZones(player!); // get the zones dangerous to the player
         let illegalPositionFlag: boolean = false; // triggered if the king is trying to move to a spot in a DangerZone tile
 
+
+        // if the move is legal {
+            // if something is in our way, delete it
+            // if it's a king, force it to move to a safe spot
+            // move the piece to the location
+            // check if we've put an enemy king in check
+        // } else return the piece
 
         if (isLegalMove(piece, pieces!, oldPosition!, newPosition!, turn!)) {  // check if the move is legal, if it is, we move the piece
             // this is where we delete something on collision
@@ -515,11 +547,12 @@ export default function Chessboard() {
                     }
                 }
             }
+
             setPieces(tempArray);
 
             if (piece.type === Type.KING) // if we're moving a king
             {
-                // check if we're moving it to a spot where it would be in check
+                // force the king to only move to a safe spot
 
                 dangerZones.forEach(position => {
                     if ((newPosition.column === position.column) && (newPosition.row === position.row))
@@ -530,10 +563,12 @@ export default function Chessboard() {
                 })
 
             }
-            
+
             if (!illegalPositionFlag)
-            {
+            {  
+
                 // move the piece to a location
+
                 setPieces(value => {
                     const pieces = value?.map(p => {
                         if (p.x === oldPosition!.column && p.y === oldPosition!.row) {   // only change our old position to our new position
@@ -546,6 +581,12 @@ export default function Chessboard() {
                     return pieces;
                 });
 
+                // I nearly went insane but I have just learned that setting a hook is ASYNCHRONOUS LOL. I had a feeling it had something to do with lifecycle.
+                // I was legitimately about to go psychotic. that's a hard lesson. So... how do I do a checkCheck with my updated pieces? hahaha.
+                // 2 options. ComponentDidUpdate, OR change the function above me to give me a temporary value to use... i'll choose the latter as I don't think lifecycle
+                // was intended for something like this. :^)
+
+                checkCheck();
                 // you've completed your move, it's their turn now
                 switchTurn();
             }
@@ -553,6 +594,7 @@ export default function Chessboard() {
         } else {
             returnPiece(); // not a legal move, return the piece to where it was.
         }
+
 
     }
 

@@ -381,14 +381,8 @@ const scan = (pieces: Piece[], oldPosition: Position, newPosition: Position) => 
                     {
                         if ((piece.x < closest.x) && (piece.y < closest.y)) closest = piece;
                     } else closest = piece;
-                })
+                });
 
-                // for (let i = 1; i < foundPieces.length; i++) {
-                //     if (closest)
-                //     {
-                //         if ((foundPieces[i].x < closest.x) && (foundPieces[i].y < closest.y)) closest = foundPieces[i];
-                //     } else closest = foundPieces[i];
-                // }
 
 
                 if (closest)
