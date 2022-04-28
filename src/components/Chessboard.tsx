@@ -3,6 +3,7 @@ import Tile from './Tile';
 import { initialBoardState } from '../Constants';
 import { isLegalMove } from '../Rules';
 import React, { useEffect, useRef, useState } from 'react';
+import _ from 'lodash';
 
 export interface Piece {
     image: string,
@@ -47,6 +48,7 @@ export default function Chessboard() {
     let [opponent, setOpponent] = useState<Colour>()
     let [check, setCheck] = useState<Colour | undefined>(undefined);
 
+
     // single player is pretty much just for debugging and showcasing on my website, you control both pieces. we'll constantly switch 'opponent' and 'player' variables in this case
 
     const horizontalAxis = ["a", "b", "c", "d", "e", "f", "g", "h"]; // this is used for transcribing our grid elements xe[0,7], ye[0,7] to regular chess squares.
@@ -78,16 +80,25 @@ export default function Chessboard() {
         let piecePositions: Position[] = [];
 
         // get the position of each piece in play
-        pieces?.forEach(piece => {
+        // ok so this is a really bad way to do this and i'm well aware, but i need this to avoid stale state.
+        // I regret making a video game in React as of this moment, 95% of the way there. God help me Oliver.
+
+        // setTimeout(() => {
+        //     pieces!.forEach(piece => {
+        //         piecePositions.push({column: piece.x, row: piece.y})
+        //     })
+        // }, 50)
+
+        pieces!.forEach(piece => {
             piecePositions.push({column: piece.x, row: piece.y})
         })
-        
-        // i can't use piecePositions anymore. i have to reformat everything to not use it lol
-    
+
+
         colour === Colour.BLACK ? direction = -1 : direction = 1; // black goes down, while white goes up. this is used for pawns exclusively!
+
     
-        pieces?.forEach(piece => {
-            if (piece.colour === player) // we're looking for colour's enemy. those enemies create dangerous zones for the provided colour e.g. white's danger zones are created by black pieces in this formula
+        pieces!.forEach(piece => {
+            if (piece.colour !== colour) // we're looking for colour's enemy. those enemies create dangerous zones for the provided colour e.g. white's danger zones are created by black pieces in this formula
             {
                 switch (piece.type) // this is going to be a big mess of complicated math, but basically i'm setting tiles based on where pieces could go, and accounting for the fact that you can't jump over other pieces.
                 {
@@ -208,11 +219,9 @@ export default function Chessboard() {
                             if(JSON.stringify(piecePositions).includes(JSON.stringify({column: piece.x + i, row: piece.y - i}))) // check if there is a piece in pieces where we're currently pointed to
                             {
                                 dangerZonesArray.push({column: piece.x + i, row: piece.y - i}); // add that last tile to dangerzones, used for making a king have to move
-                                console.log(`(${piece.x + i}, ${piece.y - i} is in danger)`);
                                 i = 8; // end the iteration
                             } else {
                                 dangerZonesArray.push({column: piece.x + i, row: piece.y - i}); // add the tile to the list of dangerous tiles, and move on to the next tile.
-                                console.log(`(${piece.x + i}, ${piece.y - i} is in danger)`);
                             }
 
                         }
@@ -405,7 +414,7 @@ export default function Chessboard() {
             flag = false; // reset the algorithm
     
         });
-    
+
         return filteredDangerZonesArray;
 
     }
@@ -563,7 +572,7 @@ export default function Chessboard() {
                 })
 
             }
-
+ 
             if (!illegalPositionFlag)
             {  
 
@@ -581,12 +590,7 @@ export default function Chessboard() {
                     return pieces;
                 });
 
-                // I nearly went insane but I have just learned that setting a hook is ASYNCHRONOUS LOL. I had a feeling it had something to do with lifecycle.
-                // I was legitimately about to go psychotic. that's a hard lesson. So... how do I do a checkCheck with my updated pieces? hahaha.
-                // 2 options. ComponentDidUpdate, OR change the function above me to give me a temporary value to use... i'll choose the latter as I don't think lifecycle
-                // was intended for something like this. :^)
 
-                checkCheck();
                 // you've completed your move, it's their turn now
                 switchTurn();
             }
@@ -607,6 +611,8 @@ export default function Chessboard() {
             setPlayer(opponent);
             setOpponent(temp);
         }
+
+        setTimeout(checkCheck, 25); // i have to wait until state updates (i know this is a bad way to do it but stale state is a serious problem for this game...)
 
         setTurn(opponent);
         setTurns(turns + 1); // next turn
